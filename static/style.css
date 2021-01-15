@@ -32,11 +32,12 @@ a:active {
     margin: 10px;
     padding: 5px;
     flex-grow: 1;
+    margin-bottom: 15px;
 }
 
 .post-title {
     font-size: 2em;
-    margin-left: 3px;
+    margin-left: 5px;
 }
 
 .content {
@@ -52,12 +53,17 @@ a:active {
 }
 
 .blog-title {
-    font-size: 2em;
+    font-size: 1.3em;
     padding: 5px;
     font-family: sans-serif;
     text-decoration: underline overline;
     background-color: royalblue;
     color: white;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.tag-search {
 }
 
 .post-tags-list {
@@ -97,23 +103,115 @@ a:active {
     margin: 0 10px;
 }
 
+.admin-title {
+    background-color: royalblue;
+    font-size: 2em;
+    font-family: sans-serif;
+    text-align: center;
+    color: white;
+    padding: 5px;
+    margin: 0 50px;
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+.action-list {
+    display: flex;
+    flex-direction: column;
+    
+}  
+
+.post-body-field {
+    resize: vertical;
+    padding: 3px;
+}
+
+.submit-form {
+    font-size: 1.4em;
+    margin: 10px 20px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-self: stretch;
+    font-family: sans-serif;
+    font-size: 1.7em;
+    align-items: flex-end;
+    color: white;
+    padding: 5px;
+}
+
+.submit-form:hover {
+    color: red;
+}
+
+.action {
+    background-color: royalblue;
+    font-family: sans-serif;
+    font-size: 2em;
+    padding: 5px;
+    margin-bottom: 15px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.post-form {
+    background-color: royalblue;
+    display: flex;
+    flex-direction: column;
+    padding: 5px;
+}
+
+.field {
+    margin: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.label {
+    font-family: sans-serif;
+    font-size: 1.2em;
+    color: white;
+}
+
+.tag-search {
+    border: solid 2px;
+    padding: 3px;
+}
+
+.admin-auth {
+    font-size: 0.8em;
+    text-align: end;
+}
+
 @media screen and (min-width: 800px) {
     .content {
         width: 85%;
         align-self: center;
     }
+    .header {
+        width: 85%;
+        align-self: center;
+    }
 }
+
 
 @media screen and (min-width: 1100px) {
     .content {
         width: 70%;
-        align-self: center;
     }
+    .header {
+        width: 70%;
+    }
+
 }
 
 @media screen and (min-width: 1400px) {
     .content {
         width: 50%;
-        align-self: center;
+    }
+    .header {
+        width: 50%;
     }
 }
