@@ -1,16 +1,18 @@
 package blog
 
 import (
-	"net/http"
-	"time"
 	"context"
 	"html/template"
 	"log"
+	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Post struct {
@@ -28,38 +30,45 @@ type blogPageData struct {
 	PageCount  int
 }
 
-
+type postFormPageData struct {
+	Title      string
+	Form       map[string]string
+	ButtonText string
+}
 
 type Blog struct {
 	*mux.Router
-	posts *mongo.Collection
-	pageSize int
-	postPage *template.Template
-	blogPage *template.Template
+	posts                      *mongo.Collection
+	pageSize                   int
+	postPage                   *template.Template
+	authPage                   *template.Template
+	blogPage                   *template.Template
+	adminPage                  *template.Template
+	postFormPage               *template.Template
+	login, password, secretKey string
 }
 
 func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
 	pageNumber, _ := strconv.Atoi(mux.Vars(r)["page"])
+
 	pg := &blogPageData{Title: "Tagged Blog", Posts: []Post{}, PageNumber: pageNumber}
-	cursor, err := b.posts.Find(context.TODO(), bson.M{})
+	cnt, _ := b.posts.CountDocuments(context.TODO(), bson.M{})
+
+	var opts options.FindOptions
+	opts.SetSort(bson.M{
+		"timePublished": -1,
+	}).SetSkip(int64(b.pageSize * (pageNumber - 1))).SetLimit(int64(b.pageSize))
+
+	cursor, err := b.posts.Find(context.TODO(), bson.M{}, &opts)
 	if err != nil {
 		log.Fatal(err)
 	}
-	lowest := 1 + b.pageSize*(pageNumber-1)
-	biggest := b.pageSize * pageNumber
-	cnt := 0
-	for cursor.Next(context.TODO()) {
-		cnt++
-		if cnt >= lowest && cnt <= biggest {
-			var post Post
-			if err := cursor.Decode(&post); err != nil {
-				log.Fatal(err)
-			}
-			pg.Posts = append(pg.Posts, post)
-		}
+
+	if err := cursor.All(context.TODO(), &pg.Posts); err != nil {
+		log.Fatal(err)
 	}
 
-	pg.PageCount = (cnt + b.pageSize - 1) / b.pageSize
+	pg.PageCount = (int(cnt) + b.pageSize - 1) / b.pageSize
 	if err := b.blogPage.Execute(rw, pg); err != nil {
 		log.Fatal(err)
 	}
@@ -72,15 +81,114 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 		http.NotFound(rw, r)
 		return
 	}
-	
+
 	if err := b.postPage.Execute(rw, post); err != nil {
 		log.Fatal(err)
 	}
 }
 
+func (b *Blog) adminHandler(rw http.ResponseWriter, r *http.Request) {
+	if !b.checkAuth(r) {
+		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+	} else if err := b.adminPage.Execute(rw, nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (b *Blog) authHandler(rw http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		r.ParseForm()
+		login := r.Form.Get("login")
+		password := r.Form.Get("password")
+		if login == b.login && password == b.password {
+			http.SetCookie(rw, &http.Cookie{Name: "auth", Value: b.secretKey})
+			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+		} else {
+			http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+		}
+	} else if b.checkAuth(r) {
+		http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+	} else if err := b.authPage.Execute(rw, nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (b *Blog) nextID() int {
+	cnt, err := b.posts.CountDocuments(context.TODO(), bson.M{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	return int(cnt + 1)
+}
+
+func extractTags(s string) []string {
+	fields := strings.Fields(s)
+	for i := range fields {
+		fields[i] = strings.ToLower(fields[i])
+	}
+
+	return fields
+}
+
+func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
+	if !b.checkAuth(r) {
+		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+		return
+	}
+	if r.Method == "POST" {
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(rw, r, "/blog/admin/create", http.StatusFound)
+		} else {
+			b.posts.InsertOne(context.TODO(), Post{
+				Title:         r.Form.Get("title"),
+				Body:          template.HTML(r.Form.Get("body")),
+				Tags:          extractTags(r.Form.Get("tags")),
+				ID:            b.nextID(),
+				TimePublished: time.Now(),
+			})
+			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+		}
+	} else if err := b.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST"}); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (b *Blog) editHandler(rw http.ResponseWriter, r *http.Request) {
+	if !b.checkAuth(r) {
+		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+		return
+	}
+	if r.Method == "POST" {
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(rw, r, "/blog/admin/create", http.StatusFound)
+		} else {
+			b.posts.InsertOne(context.TODO(), Post{
+				Title:         r.Form.Get("title"),
+				Body:          template.HTML(r.Form.Get("body")),
+				Tags:          extractTags(r.Form.Get("tags")),
+				ID:            b.nextID(),
+				TimePublished: time.Now(),
+			})
+			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+		}
+	} else if err := b.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST"}); err != nil {
+		log.Fatal(err)
+	}
+
+}
+
+
+func (b *Blog) checkAuth(r *http.Request) bool {
+	key, err := r.Cookie("auth")
+	return err == nil && key.Value == b.secretKey
+}
+
 //NewBlog creates blog app
-func NewBlog(posts *mongo.Collection, pageSize int, workdir string) Blog {
+func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, password, secretKey string) Blog {
 	var blog Blog
+	blog.login = login
+	blog.password = password
+	blog.secretKey = secretKey
 
 	blog.blogPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"dec": func(x int) int {
@@ -90,24 +198,46 @@ func NewBlog(posts *mongo.Collection, pageSize int, workdir string) Blog {
 			return x + 1
 		},
 	}).ParseFiles(
-		workdir + "/templates/base.html",
-		workdir + "/templates/post-header.html",
-		workdir + "/templates/post-list.html",
+		workdir+"/templates/base.html",
+		workdir+"/templates/post-header.html",
+		workdir+"/templates/post-list.html",
 	))
-	
+
 	blog.postPage = template.Must(template.New("base.html").ParseFiles(
-		workdir + "/templates/base.html",
-		workdir + "/templates/post-header.html",
-		workdir + "/templates/post.html",
+		workdir+"/templates/base.html",
+		workdir+"/templates/post-header.html",
+		workdir+"/templates/post.html",
 	))
-	
+
+	blog.authPage = template.Must(template.New("base.html").ParseFiles(
+		workdir+"/templates/base.html",
+		workdir+"/templates/auth.html",
+	))
+
+	blog.adminPage = template.Must(template.New("base.html").ParseFiles(
+		workdir+"/templates/base.html",
+		workdir+"/templates/admin.html",
+	))
+
+	blog.postFormPage = template.Must(template.New("base.html").ParseFiles(
+		workdir+"/templates/base.html",
+		workdir+"/templates/post-form.html",
+	))
+
 	blog.Router = mux.NewRouter()
 	blog.posts = posts
 	blog.pageSize = pageSize
 	blog.HandleFunc("/blog/page/{page:[0-9]+}", blog.postListHandler)
 	blog.HandleFunc("/blog/post/{id:[0-9]+}", blog.postHandler)
 	blog.HandleFunc("/blog/static/style.css", func(rw http.ResponseWriter, r *http.Request) {
-		http.ServeFile(rw, r, workdir + "/static/style.css")
+		http.ServeFile(rw, r, workdir+"/static/style.css")
 	})
+	blog.HandleFunc("/blog/static/style.css", func(rw http.ResponseWriter, r *http.Request) {
+		http.ServeFile(rw, r, workdir+"/static/style.css")
+	})
+	blog.HandleFunc("/blog/admin/auth", blog.authHandler)
+	blog.HandleFunc("/blog/admin", blog.adminHandler)
+	blog.HandleFunc("/blog/admin/create", blog.createHandler)
+	blog.HandleFunc("/blog/admin/edit", blog.editHandler)
 	return blog
 }

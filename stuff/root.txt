@@ -1,4 +1,0 @@
-MAIN PAGE
-BEGIN
-{{block "content" . -}}default content{{- end -}}
-END

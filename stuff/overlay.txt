@@ -1,6 +1,0 @@
-{{- define "content" -}}
-    {{- printf "Page %d of %d\n" .Page .TotalPages -}}
-    {{- range .Posts -}}
-    {{- println . -}}
-    {{- end -}}
-{{- end -}}

@@ -9,7 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const pageSize = 15
+const pageSize = 8
 
 func main() {
 	ctx := context.Background()
@@ -25,7 +25,7 @@ func main() {
 
 	posts := client.Database("test").Collection("posts")
 
-	blog := blog.NewBlog(posts, pageSize, "blog")
+	blog := blog.NewBlog(posts, pageSize, "blog", "admin", "1234", "abcdef")
 	http.Handle("/", blog)
 	http.ListenAndServe("localhost:2222", nil)
 }

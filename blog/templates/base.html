@@ -4,12 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/blog/static/style.css">
     <title>{{.Title}}</title>
 </head>
 
 <body>
-    <div class="blog-title">TAGGED BLOG</div>
+    <div class="header">
+        <a class="tag-search" href="/blog/tagsearch">TAG SEARCH</a>
+        <a class="blog-title" href="/blog/page/1">TAGGED BLOG</a>
+        <a class="admin-auth" href="/blog/admin/auth">I'M ADMIN</a>
+    </div>
     <div class="content">
         {{block "content" .}}{{end}}
     </div>
