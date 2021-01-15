@@ -1,0 +1,14 @@
+{{define "content"}}
+<div class="posts-list">
+    {{range .Posts}}
+    {{template "post-header" .}}
+    {{end}}
+</div>
+<div class="page-switcher-box">
+    <div class="page-switcher">
+        <a class="switch-button" href="{{if gt .PageNumber 1}}{{dec .PageNumber}}{{else}}#{{end}}">Prev</a>
+        <span>Page {{.PageNumber}} of {{.PageCount}}</span>
+        <a class="switch-button" href="{{if lt .PageNumber .PageCount}}{{inc .PageNumber}}{{else}}#{{end}}">Next</a>
+    </div>
+</div>
+{{end}}

@@ -1,0 +1,119 @@
+body {
+    background-color: royalblue;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+}
+
+a {
+    text-decoration: none;
+} 
+
+a:link {
+    color: white;
+}
+
+a:visited {
+    color: white;
+}
+
+a:hover {
+    color: red;
+}
+
+a:active {
+    color: red;
+}
+
+.post-header {
+    background-color: royalblue;
+    margin: 10px;
+    padding: 5px;
+    flex-grow: 1;
+}
+
+.post-title {
+    font-size: 2em;
+    margin-left: 3px;
+}
+
+.content {
+    padding: 5px;
+    background-color: white;
+    border-color: royalblue;
+    border-style: solid;
+    border-width: 10px;
+    flex-grow: 1;
+    align-self: stretch;
+    flex-direction: column;
+    display: flex;
+}
+
+.blog-title {
+    font-size: 2em;
+    padding: 5px;
+    font-family: sans-serif;
+    text-decoration: underline overline;
+    background-color: royalblue;
+    color: white;
+}
+
+.post-tags-list {
+    margin: 0 5px;
+    width: 70%;
+    font-family: sans-serif;
+    color: lavender;
+}
+
+.tags-word {
+    font-style: italic;
+}
+
+.datetime {
+    margin-left: 10px;
+    font-family: sans-serif;
+    background-color: lightsteelblue;
+}
+
+.page-switcher-box {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    flex-grow: 1;
+}
+
+.page-switcher {
+    font-family: sans-serif;
+    font-size: 1.2em;
+    background-color: royalblue;
+    padding: 5px;
+    margin-bottom: 0;
+    color: white;
+}
+
+.switch-button {
+    margin: 0 10px;
+}
+
+@media screen and (min-width: 800px) {
+    .content {
+        width: 85%;
+        align-self: center;
+    }
+}
+
+@media screen and (min-width: 1100px) {
+    .content {
+        width: 70%;
+        align-self: center;
+    }
+}
+
+@media screen and (min-width: 1400px) {
+    .content {
+        width: 50%;
+        align-self: center;
+    }
+}

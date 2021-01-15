@@ -1,0 +1,9 @@
+{{define "post-header"}}
+<div class="post-header">
+    <div>
+        <div><span class="datetime">{{.TimePublished.Local.Format "02-01-2006 15:04 MST"}}</span></div>
+        <a class="post-title" href="/blog/post/{{.ID}}">{{.Title}}</a>
+    </div>
+    <div class="post-tags-list"><span class="tags-word">TAGS:</span>{{.Tags}}</div>
+</div>
+{{end}}
