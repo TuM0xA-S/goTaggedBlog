@@ -123,11 +123,18 @@ func (b *Blog) nextID() int {
 
 func extractTags(s string) []string {
 	fields := strings.Fields(s)
-	for i := range fields {
-		fields[i] = strings.ToLower(fields[i])
+	set := map[string]bool{}
+	res := []string{}
+	for _, f := range fields {
+		f = strings.ToLower(f)
+		if set[f] {
+			continue
+		}
+		res = append(res, f)
+		set[f] = true
 	}
 
-	return fields
+	return res
 }
 
 func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
@@ -153,30 +160,53 @@ func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (b *Blog) editHandler(rw http.ResponseWriter, r *http.Request) {
+func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
 		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
 		return
 	}
+
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	if r.Method == "POST" {
 		if err := r.ParseForm(); err != nil {
-			http.Redirect(rw, r, "/blog/admin/create", http.StatusFound)
+			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
 		} else {
-			b.posts.InsertOne(context.TODO(), Post{
-				Title:         r.Form.Get("title"),
-				Body:          template.HTML(r.Form.Get("body")),
-				Tags:          extractTags(r.Form.Get("tags")),
-				ID:            b.nextID(),
-				TimePublished: time.Now(),
-			})
+			b.posts.UpdateOne(context.TODO(), bson.M{"_id": id}, bson.M{
+				"$set": bson.M{
+					"title":         r.Form.Get("title"),
+					"body":          template.HTML(r.Form.Get("body")),
+					"tags":          extractTags(r.Form.Get("tags")),
+					"timePublished": time.Now(),
+				}})
 			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
 		}
-	} else if err := b.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST"}); err != nil {
-		log.Fatal(err)
+	} else {
+		var post Post
+		if err := b.posts.FindOne(context.TODO(), bson.M{"_id": id}).Decode(&post); err != nil {
+			http.NotFound(rw, r)
+			return
+		}
+		if err := b.postFormPage.Execute(rw, postFormPageData{ButtonText: "CHANGE", Title: "CHANGE POST", Form: map[string]string{
+			"Body":  string(post.Body),
+			"Title": post.Title,
+			"Tags":  strings.Join(post.Tags, " "),
+		}}); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 }
 
+func (b *Blog) removeHandler(rw http.ResponseWriter, r *http.Request) {
+	if !b.checkAuth(r) {
+		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+		return
+	}
+
+	id, _ := strconv.Atoi(mux.Vars(r)["id"])
+	b.posts.FindOneAndDelete(context.TODO(), bson.M{"_id": id})
+	http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+}
 
 func (b *Blog) checkAuth(r *http.Request) bool {
 	key, err := r.Cookie("auth")
@@ -197,13 +227,16 @@ func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, passw
 		"inc": func(x int) int {
 			return x + 1
 		},
+		"join": strings.Join,
 	}).ParseFiles(
 		workdir+"/templates/base.html",
 		workdir+"/templates/post-header.html",
 		workdir+"/templates/post-list.html",
 	))
 
-	blog.postPage = template.Must(template.New("base.html").ParseFiles(
+	blog.postPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"join": strings.Join,
+	}).ParseFiles(
 		workdir+"/templates/base.html",
 		workdir+"/templates/post-header.html",
 		workdir+"/templates/post.html",
@@ -238,6 +271,7 @@ func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, passw
 	blog.HandleFunc("/blog/admin/auth", blog.authHandler)
 	blog.HandleFunc("/blog/admin", blog.adminHandler)
 	blog.HandleFunc("/blog/admin/create", blog.createHandler)
-	blog.HandleFunc("/blog/admin/edit", blog.editHandler)
+	blog.HandleFunc("/blog/admin/change/{id:[0-9]+}", blog.changeHandler)
+	blog.HandleFunc("/blog/admin/remove/{id:[0-9]+}", blog.removeHandler)
 	return blog
 }
