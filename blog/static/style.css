@@ -5,6 +5,7 @@ body {
     flex-direction: column;
     align-items: center;
     margin: 0;
+    font-family: 'Roboto', sans-serif;
 }
 
 a {
@@ -28,6 +29,7 @@ a:active {
     color: red;
 }
 
+
 .post-header {
     background-color: royalblue;
     margin: 10px;
@@ -39,6 +41,8 @@ a:active {
 .post-title {
     font-size: 2em;
     margin-left: 5px;
+    margin-top: 2px;
+    margin-bottom: 2px;
 }
 
 .content {
@@ -56,7 +60,7 @@ a:active {
 .blog-title {
     font-size: 1.3em;
     padding: 5px;
-    font-family: sans-serif;
+    
     text-decoration: underline overline;
     background-color: royalblue;
     color: white;
@@ -68,14 +72,14 @@ a:active {
     background-color: royalblue;
     font-size: 1.5em;
     color: white;
-    font-family: sans-serif;
+    
     padding: 5px;
 }
 
 .post-tags-list {
     margin: 0 5px;
     width: 70%;
-    font-family: sans-serif;
+    
     color: lavender;
 }
 
@@ -85,8 +89,10 @@ a:active {
 
 .datetime {
     margin-left: 10px;
-    font-family: sans-serif;
+    
     background-color: lightsteelblue;
+    color: black;
+
 }
 
 .page-switcher-box {
@@ -96,9 +102,8 @@ a:active {
     flex-grow: 1;
 }
 
-.page-switcher {
-    font-family: sans-serif;
-    font-size: 1.2em;
+.page-switcher {    
+    font-size: 1.4em;
     background-color: royalblue;
     padding: 5px;
     margin-bottom: 0;
@@ -112,7 +117,7 @@ a:active {
 .admin-title {
     background-color: royalblue;
     font-size: 2em;
-    font-family: sans-serif;
+    
     text-align: center;
     color: white;
     padding: 5px;
@@ -129,7 +134,7 @@ a:active {
 
 .post-body-field {
     resize: vertical;
-    padding: 3px;
+    padding: 5px;
     flex-grow: 1;
 }
 
@@ -140,17 +145,23 @@ a:active {
     border: solid 2px;
     color: white;
     padding: 3px;
+    
 }
 
 .header {
     display: flex;
     justify-content: space-between;
     align-self: stretch;
-    font-family: sans-serif;
+    
     font-size: 1.7em;
     align-items: flex-end;
     color: white;
     padding: 5px;
+}
+
+.post-body {
+    padding: 5px 10px;
+    font-size: 1.1em;
 }
 
 .submit-form:hover {
@@ -159,7 +170,7 @@ a:active {
 
 .action {
     background-color: royalblue;
-    font-family: sans-serif;
+    
     font-size: 2em;
     padding: 5px;
     margin: 5px;
@@ -175,6 +186,10 @@ a:active {
     flex-grow: 1;
 }
 
+.auth-form {
+    flex-grow: 0;
+}
+
 .body-field {
     flex-grow: 1; 
     display: flex; 
@@ -185,10 +200,11 @@ a:active {
     margin: 10px;
     display: flex;
     flex-direction: column;
+    font-size: 1.1em;
 }
 
 .label {
-    font-family: sans-serif;
+    
     font-size: 1.2em;
     color: white;
 }

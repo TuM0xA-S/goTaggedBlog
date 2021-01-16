@@ -1,19 +1,41 @@
 package main
 
 import (
-	"github.com/TuM0xA-S/goTaggedBlog/blog"
-	"net/http"
-	"log"
 	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/TuM0xA-S/goTaggedBlog/blog"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const pageSize = 8
 
+type config struct {
+	MongodbURI     string
+	PageSize       int
+	Host           string
+	Login          string
+	Password       string
+	SecretKey      string
+	DBName         string
+	CollectionName string
+	BlogTitle      string
+}
+
 func main() {
+	cfgFile, err := os.Open("config.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	decoder := json.NewDecoder(cfgFile)
+	var cfg config
+	decoder.Decode(&cfg)
 	ctx := context.Background()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongodbURI))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -23,9 +45,9 @@ func main() {
 		}
 	}()
 
-	posts := client.Database("test").Collection("posts")
+	posts := client.Database(cfg.DBName).Collection(cfg.CollectionName)
 
-	blog := blog.NewBlog(posts, pageSize, "blog", "admin", "1234", "abcdef")
+	blog := blog.NewBlog(posts, pageSize, "blog", cfg.Login, cfg.Password, cfg.SecretKey, cfg.BlogTitle)
 	http.Handle("/", blog)
-	http.ListenAndServe("localhost:2222", nil)
+	http.ListenAndServe(cfg.Host, nil)
 }

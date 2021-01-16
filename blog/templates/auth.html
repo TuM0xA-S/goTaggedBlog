@@ -1,9 +1,9 @@
 {{define "content"}}
 <div class="admin-title">ADMIN AUTHORIZATION</div>
-<form class="post-form" autocomplete="off" action="/blog/admin/auth" method="post">
+<form class="post-form auth-form" autocomplete="off" action="/blog/admin/auth" method="post">
     <div class="field">
         <div class="label">Login:</div>
-        <input type="text" name="login" required/>
+        <input type="text" name="login" class="login" required/>
     </div>
     <div class="field">
         <div class="label">Password:</div>

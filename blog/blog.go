@@ -30,6 +30,7 @@ type blogPageData struct {
 	PageCount  int
 	Query      template.URL
 	Tags       []string
+	BlogTitle   string
 }
 
 type postFormPageData struct {
@@ -40,15 +41,15 @@ type postFormPageData struct {
 
 type Blog struct {
 	*mux.Router
-	posts                      *mongo.Collection
-	counter                    *mongo.Collection
-	pageSize                   int
-	postPage                   *template.Template
-	authPage                   *template.Template
-	blogPage                   *template.Template
-	adminPage                  *template.Template
-	postFormPage               *template.Template
-	login, password, secretKey string
+	posts                             *mongo.Collection
+	counter                           *mongo.Collection
+	pageSize                          int
+	postPage                          *template.Template
+	authPage                          *template.Template
+	blogPage                          *template.Template
+	adminPage                         *template.Template
+	postFormPage                      *template.Template
+	login, password, secretKey, title string
 }
 
 func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
@@ -56,7 +57,7 @@ func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
 
 	tags := extractTags(r.URL.Query().Get("tags"))
 
-	pg := &blogPageData{Title: "Tagged Blog", Posts: []Post{}, PageNumber: pageNumber, Query: template.URL(r.URL.RawQuery), Tags: tags}
+	pg := &blogPageData{Title: b.title, BlogTitle: b.title, Posts: []Post{}, PageNumber: pageNumber, Query: template.URL(r.URL.RawQuery), Tags: tags}
 
 	query := bson.A{
 		bson.M{
@@ -259,11 +260,12 @@ func (b *Blog) checkAuth(r *http.Request) bool {
 }
 
 //NewBlog creates blog app
-func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, password, secretKey string) Blog {
+func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, password, secretKey, title string) Blog {
 	var blog Blog
 	blog.login = login
 	blog.password = password
 	blog.secretKey = secretKey
+	blog.title = title
 
 	blog.blogPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
 		"dec": func(x int) int {
@@ -319,5 +321,7 @@ func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, passw
 	blog.HandleFunc("/blog/admin/create", blog.createHandler)
 	blog.HandleFunc("/blog/admin/change/{id:[0-9]+}", blog.changeHandler)
 	blog.HandleFunc("/blog/admin/remove/{id:[0-9]+}", blog.removeHandler)
+	blog.Handle("/blog", http.RedirectHandler("/blog/page/1", http.StatusFound))
+
 	return blog
 }

@@ -1,0 +1,11 @@
+{
+    "MongodbURI": "mongodb://localhost:27017",
+    "PageSize": 8,
+    "Login": "admin",
+    "Password": "taggedBlog",
+    "SecretKey": "123dsafa21dsf123045daslg432f",
+    "Host": "localhost:2222",
+    "DBName": "test",
+    "CollectionName": "posts",
+    "BlogTitle": "TAGGED BLOG"
+}
