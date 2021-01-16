@@ -2,6 +2,7 @@ package blog
 
 import (
 	"context"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"html/template"
 	"log"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Post struct {
@@ -28,6 +28,8 @@ type blogPageData struct {
 	PageNumber int
 	Posts      []Post
 	PageCount  int
+	Query      template.URL
+	Tags       []string
 }
 
 type postFormPageData struct {
@@ -39,6 +41,7 @@ type postFormPageData struct {
 type Blog struct {
 	*mux.Router
 	posts                      *mongo.Collection
+	counter                    *mongo.Collection
 	pageSize                   int
 	postPage                   *template.Template
 	authPage                   *template.Template
@@ -51,15 +54,44 @@ type Blog struct {
 func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
 	pageNumber, _ := strconv.Atoi(mux.Vars(r)["page"])
 
-	pg := &blogPageData{Title: "Tagged Blog", Posts: []Post{}, PageNumber: pageNumber}
-	cnt, _ := b.posts.CountDocuments(context.TODO(), bson.M{})
+	tags := extractTags(r.URL.Query().Get("tags"))
 
-	var opts options.FindOptions
-	opts.SetSort(bson.M{
-		"timePublished": -1,
-	}).SetSkip(int64(b.pageSize * (pageNumber - 1))).SetLimit(int64(b.pageSize))
+	pg := &blogPageData{Title: "Tagged Blog", Posts: []Post{}, PageNumber: pageNumber, Query: template.URL(r.URL.RawQuery), Tags: tags}
 
-	cursor, err := b.posts.Find(context.TODO(), bson.M{}, &opts)
+	query := bson.A{
+		bson.M{
+			"$match": bson.M{
+				"tags": bson.M{"$in": tags},
+			},
+		},
+		bson.M{
+			"$addFields": bson.M{
+				"commonCnt": bson.M{
+					"$size": bson.M{
+						"$setIntersection": bson.A{"$tags", tags},
+					},
+				},
+			},
+		},
+		bson.M{
+			"$sort": bson.D{
+				{"commonCnt", -1},
+				{"timePublished", -1},
+			},
+		},
+		bson.M{
+			"$skip": b.pageSize * (pageNumber - 1),
+		},
+		bson.M{
+			"$limit": b.pageSize,
+		},
+	}
+
+	if len(tags) == 0 {
+		query = query[1:]
+	}
+
+	cursor, err := b.posts.Aggregate(context.TODO(), query)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -67,6 +99,15 @@ func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
 	if err := cursor.All(context.TODO(), &pg.Posts); err != nil {
 		log.Fatal(err)
 	}
+
+	criteria := bson.M{}
+	if len(tags) > 0 {
+		criteria["tags"] = bson.M{
+			"$in": tags,
+		}
+	}
+
+	cnt, err := b.posts.CountDocuments(context.TODO(), criteria)
 
 	pg.PageCount = (int(cnt) + b.pageSize - 1) / b.pageSize
 	if err := b.blogPage.Execute(rw, pg); err != nil {
@@ -114,11 +155,15 @@ func (b *Blog) authHandler(rw http.ResponseWriter, r *http.Request) {
 }
 
 func (b *Blog) nextID() int {
-	cnt, err := b.posts.CountDocuments(context.TODO(), bson.M{})
-	if err != nil {
-		log.Fatal(err)
+	var cnt struct {
+		ID    int `bson:"_id"`
+		Count int
 	}
-	return int(cnt + 1)
+
+	b.counter.FindOne(context.TODO(), bson.M{"_id": 0}).Decode(&cnt)
+	cnt.Count++
+	b.counter.ReplaceOne(context.TODO(), bson.M{"_id": 0}, cnt, options.Replace().SetUpsert(true))
+	return cnt.Count
 }
 
 func extractTags(s string) []string {
@@ -259,6 +304,7 @@ func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, passw
 
 	blog.Router = mux.NewRouter()
 	blog.posts = posts
+	blog.counter = posts.Database().Collection(posts.Name() + ".counter")
 	blog.pageSize = pageSize
 	blog.HandleFunc("/blog/page/{page:[0-9]+}", blog.postListHandler)
 	blog.HandleFunc("/blog/post/{id:[0-9]+}", blog.postHandler)

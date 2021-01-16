@@ -1,14 +1,19 @@
 {{define "content"}}
 <div class="posts-list">
+    {{if .Tags}}
+        <div class="search-tag-list">
+            TAGS: {{join .Tags " "}}
+        </div>
+    {{end}}
     {{range .Posts}}
     {{template "post-header" .}}
     {{end}}
 </div>
 <div class="page-switcher-box">
     <div class="page-switcher">
-        <a class="switch-button" {{if gt .PageNumber 1}}href="{{dec .PageNumber}}"{{end}}>Prev</a>
+        <a class="switch-button" {{if gt .PageNumber 1}}href="{{dec .PageNumber}}?{{.Query}}"{{end}}>Prev</a>
         <span>Page {{.PageNumber}} of {{.PageCount}}</span>
-        <a class="switch-button" {{if lt .PageNumber .PageCount}}href="{{inc .PageNumber}}"{{end}}>Next</a>
+        <a class="switch-button" {{if lt .PageNumber .PageCount}}href="{{inc .PageNumber}}?{{.Query}}"{{end}}>Next</a>
     </div>
 </div>
 {{end}}

@@ -10,13 +10,23 @@
 
 <body>
     <div class="header">
-        <a class="tag-search" href="/blog/tagsearch">TAG SEARCH</a>
+        <a class="tag-search">TAG SEARCH</a>
         <a class="blog-title" href="/blog/page/1">TAGGED BLOG</a>
         <a class="admin-auth" href="/blog/admin/auth">I'M ADMIN</a>
     </div>
     <div class="content">
         {{block "content" .}}{{end}}
     </div>
+    <script>
+        let tagSearch = document.querySelector(".tag-search");
+        tagSearch.onclick = function() {
+            let tags = prompt("Tags: ");
+            if (tags == null) {
+                return
+            }   
+            location.href = "/blog/page/1?tags=" + encodeURIComponent(tags);
+        }
+    </script>
 </body>
 
 </html>

@@ -9,6 +9,9 @@
     for (let elem of document.querySelectorAll("[data-base-url]")) {
         elem.onclick = function() {
             let number = prompt("Post number:")
+            if (number == null) {
+                return
+            }
             location.href = elem.dataset.baseUrl + "/" + number;
         }
     }
