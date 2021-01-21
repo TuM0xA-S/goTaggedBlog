@@ -2,13 +2,14 @@ package blog
 
 import (
 	"context"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"html/template"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
@@ -23,6 +24,11 @@ type Post struct {
 	ID            int           `bson:"_id"`
 }
 
+type postPageData struct {
+	Post
+	BlogTitle string
+}
+
 type blogPageData struct {
 	Title      string
 	PageNumber int
@@ -30,13 +36,14 @@ type blogPageData struct {
 	PageCount  int
 	Query      template.URL
 	Tags       []string
-	BlogTitle   string
+	BlogTitle  string
 }
 
 type postFormPageData struct {
 	Title      string
 	Form       map[string]string
 	ButtonText string
+	BlogTitle  string
 }
 
 type Blog struct {
@@ -124,7 +131,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := b.postPage.Execute(rw, post); err != nil {
+	if err := b.postPage.Execute(rw, postPageData{post, b.title}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -132,7 +139,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 func (b *Blog) adminHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
 		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
-	} else if err := b.adminPage.Execute(rw, nil); err != nil {
+	} else if err := b.adminPage.Execute(rw, postFormPageData{BlogTitle: b.title, Title: "ADMIN PAGE"}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -150,7 +157,7 @@ func (b *Blog) authHandler(rw http.ResponseWriter, r *http.Request) {
 		}
 	} else if b.checkAuth(r) {
 		http.Redirect(rw, r, "/blog/admin", http.StatusFound)
-	} else if err := b.authPage.Execute(rw, nil); err != nil {
+	} else if err := b.authPage.Execute(rw, struct{ Title, BlogTitle string }{Title: "Authorization", BlogTitle: b.title}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -201,7 +208,7 @@ func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 			})
 			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
 		}
-	} else if err := b.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST"}); err != nil {
+	} else if err := b.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST", BlogTitle: b.title}); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -236,7 +243,7 @@ func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 			"Body":  string(post.Body),
 			"Title": post.Title,
 			"Tags":  strings.Join(post.Tags, " "),
-		}}); err != nil {
+		}, BlogTitle: b.title}); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -321,7 +328,7 @@ func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, passw
 	blog.HandleFunc("/blog/admin/create", blog.createHandler)
 	blog.HandleFunc("/blog/admin/change/{id:[0-9]+}", blog.changeHandler)
 	blog.HandleFunc("/blog/admin/remove/{id:[0-9]+}", blog.removeHandler)
-	blog.Handle("/blog", http.RedirectHandler("/blog/page/1", http.StatusFound))
+	blog.Handle("/blog/", http.RedirectHandler("/blog/page/1", http.StatusFound))
 
 	return blog
 }
