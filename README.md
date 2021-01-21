@@ -10,4 +10,4 @@ Features:
 
 ![image](https://user-images.githubusercontent.com/64231066/104821106-a55b9980-584a-11eb-946c-6ceca0dca533.png)
 
-UPD: hosted !(instance https://tum0xa.space/blog/)
+UPD: hosted instance https://tum0xa.space/blog/
