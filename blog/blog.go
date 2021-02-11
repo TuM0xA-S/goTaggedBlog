@@ -3,7 +3,6 @@ package blog
 import (
 	"context"
 	"html/template"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -101,11 +100,11 @@ func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
 
 	cursor, err := b.posts.Aggregate(context.TODO(), query)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	if err := cursor.All(context.TODO(), &pg.Posts); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
 	criteria := bson.M{}
@@ -119,7 +118,7 @@ func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
 
 	pg.PageCount = (int(cnt) + b.pageSize - 1) / b.pageSize
 	if err := b.blogPage.Execute(rw, pg); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -132,7 +131,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := b.postPage.Execute(rw, postPageData{post, b.title}); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -140,7 +139,7 @@ func (b *Blog) adminHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
 		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
 	} else if err := b.adminPage.Execute(rw, postFormPageData{BlogTitle: b.title, Title: "ADMIN PAGE"}); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -158,7 +157,7 @@ func (b *Blog) authHandler(rw http.ResponseWriter, r *http.Request) {
 	} else if b.checkAuth(r) {
 		http.Redirect(rw, r, "/blog/admin", http.StatusFound)
 	} else if err := b.authPage.Execute(rw, struct{ Title, BlogTitle string }{Title: "Authorization", BlogTitle: b.title}); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -209,7 +208,7 @@ func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
 		}
 	} else if err := b.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST", BlogTitle: b.title}); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
 
@@ -244,7 +243,7 @@ func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 			"Title": post.Title,
 			"Tags":  strings.Join(post.Tags, " "),
 		}, BlogTitle: b.title}); err != nil {
-			log.Fatal(err)
+			panic(err)
 		}
 	}
 
