@@ -36,6 +36,7 @@ a:active {
     padding: 5px;
     flex-grow: 1;
     margin-bottom: 15px;
+	display: block;
 }
 
 .post-title {
@@ -162,6 +163,15 @@ a:active {
 .post-body {
     padding: 5px 10px;
     font-size: 1.1em;
+}
+
+.post-body a {
+	color: black;
+	text-decoration: underline;
+}
+
+.post-body a:hover {
+	color: red;
 }
 
 .submit-form:hover {
