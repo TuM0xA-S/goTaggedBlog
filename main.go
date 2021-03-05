@@ -35,10 +35,12 @@ func main() {
 	var cfg config
 	decoder.Decode(&cfg)
 	ctx := context.Background()
+	log.Println("connecting to db at " + cfg.MongodbURI)
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongodbURI))
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("connected!!!")
 	defer func() {
 		if err := client.Disconnect(ctx); err != nil {
 			log.Fatal(err)
