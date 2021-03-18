@@ -2,13 +2,16 @@ version: '3.8'
 services:
   web:
     build: .
+    env_file: .env
     ports:
     - 8080:8080
+    restart: always
   
   db:
     image: mongo
     volumes:
     - data:/data/db
+    restart: always
 
 volumes:
   data:

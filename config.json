@@ -5,7 +5,5 @@
     "Password": "taggedBlog",
     "SecretKey": "123dsafa21dsf123045daslg432f",
     "Host": ":8080",
-    "DBName": "blog",
-    "CollectionName": "posts",
     "BlogTitle": "TAGGED BLOG"
 }
