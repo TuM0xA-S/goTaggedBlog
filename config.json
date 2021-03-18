@@ -1,9 +1,0 @@
-{
-    "MongodbURI": "mongodb://db:27017",
-    "PageSize": 8,
-    "Login": "admin",
-    "Password": "taggedBlog",
-    "SecretKey": "123dsafa21dsf123045daslg432f",
-    "Host": ":8080",
-    "BlogTitle": "TAGGED BLOG"
-}
