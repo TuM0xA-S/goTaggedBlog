@@ -7,6 +7,7 @@ import (
 
 	"github.com/TuM0xA-S/goTaggedBlog/blog"
 	"github.com/caarlos0/env"
+	"github.com/gorilla/mux"
 	"github.com/urfave/negroni"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -15,11 +16,12 @@ import (
 type config struct {
 	MongodbURI string `env:"MONDODB_URI"`
 	PageSize   int    `env:"PAGE_SIZE"`
-	Host       string `env:"HOST"`
+	Port       string `env:"PORT"`
 	Login      string `env:"LOGIN"`
 	Password   string `env:"PASSWORD"`
 	SecretKey  string `env:"SECRET_KEY"`
 	BlogTitle  string `env:"BLOG_TITLE"`
+	URLPrefix  string `env:"URL_PREFIX"`
 }
 
 func main() {
@@ -42,14 +44,14 @@ func main() {
 	}()
 
 	posts := client.Database("blog").Collection("posts")
-
-	blog := blog.NewBlog(posts, cfg.PageSize, "blog", cfg.Login, cfg.Password, cfg.SecretKey, cfg.BlogTitle)
+	router := mux.NewRouter()
+	blog := blog.NewBlog(router.PathPrefix(cfg.URLPrefix).Subrouter(), posts, cfg.PageSize, cfg.Login, cfg.Password, cfg.SecretKey, cfg.BlogTitle)
 
 	n := negroni.New(negroni.NewLogger(), negroni.NewRecovery())
 	n.UseHandler(blog)
 
 	http.Handle("/", n)
-	if err := http.ListenAndServe(cfg.Host, nil); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, nil); err != nil {
 		log.Fatal("when serving:", err)
 	}
 }

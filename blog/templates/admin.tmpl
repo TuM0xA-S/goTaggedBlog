@@ -1,0 +1,21 @@
+{{define "content"}}
+<div class="admin-title">ADMIN PAGE</div>
+<div class="action-list">
+    <a href="{{ getURL "createPost" }}" class="action">CREATE NEW POST</a>
+    {{/* stupid kostyl */}}
+    <a data-base-url="{{ getURL "changePost" "id" "0" }}" class="action">CHANGE POST</a>
+    <a data-base-url="{{ getURL "removePost" "id" "0" }}" class="action">REMOVE POST</a>
+</div>
+<script>
+    for (let elem of document.querySelectorAll("[data-base-url]")) {
+        elem.onclick = function() {
+            let number = prompt("Post number:")
+            if (number == null) {
+                return
+            }
+            {{/* stupid kostyl */}}
+            location.href = elem.dataset.baseUrl.replace("0", number);
+        }
+    }
+</script>
+{{end}}
