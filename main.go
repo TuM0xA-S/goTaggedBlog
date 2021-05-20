@@ -44,7 +44,7 @@ func main() {
 
 	posts := client.Database("blog").Collection("posts")
 	router := mux.NewRouter()
-	blog := blog.NewBlog(router.PathPrefix("/blog").Subrouter(), posts, cfg.PageSize, cfg.Login, cfg.Password, cfg.SecretKey, cfg.BlogTitle)
+	blog := blog.NewBlog(router.PathPrefix("/hyita").Subrouter(), posts, cfg.PageSize, cfg.Login, cfg.Password, cfg.SecretKey, cfg.BlogTitle)
 
 	n := negroni.New(negroni.NewLogger(), negroni.NewRecovery())
 	n.UseHandler(blog)

@@ -16,8 +16,8 @@
 <body>
     <div class="header">
         <a class="tag-search">TAG SEARCH</a>
-        <a class="blog-title" href="/blog/page/1">{{.BlogTitle}}</a>
-        <a class="admin-auth" href="/blog/admin/auth">I'M ADMIN</a>
+        <a class="blog-title" href="{{ getURL "postList" "page" "1" }}">{{.BlogTitle}}</a>
+        <a class="admin-auth" href="{{ getURL "auth" }}">I'M ADMIN</a>
     </div>
     <div class="content">
         {{block "content" .}}{{end}}
@@ -29,7 +29,7 @@
             if (tags == null) {
                 return
             }   
-            location.href = "/blog/page/1?tags=" + encodeURIComponent(tags);
+            location.href = "{{ getURL "postList" "page" "1" }}?tags=" + encodeURIComponent(tags);
         }
     </script>
 </body>

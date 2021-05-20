@@ -19,54 +19,65 @@ import (
 )
 
 var (
-	baseDir      string
-	templateDir  string
-	postPage     *template.Template
-	authPage     *template.Template
-	blogPage     *template.Template
-	adminPage    *template.Template
-	postFormPage *template.Template
+	baseDir     string
+	templateDir string
+	staticDir   string
 )
 
 func init() {
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir = path.Dir(filename)
 	templateDir = path.Join(baseDir, "templates")
-	blogPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"dec": func(x int) int {
-			return x - 1
-		},
-		"inc": func(x int) int {
-			return x + 1
-		},
-		"join": strings.Join,
-	}).ParseFiles(
-		templateDir+"/base.html",
-		templateDir+"/post-header.html",
-		templateDir+"/post-list.html",
+	staticDir = path.Join(baseDir, "static")
+}
+
+type templates struct {
+	postPage     *template.Template
+	authPage     *template.Template
+	blogPage     *template.Template
+	adminPage    *template.Template
+	postFormPage *template.Template
+}
+
+func (b *Blog) parseTemplates() {
+	base := func() *template.Template {
+		return template.New("base.tmpl").Funcs(template.FuncMap{
+			"dec": func(x int) int {
+				return x - 1
+			},
+			"inc": func(x int) int {
+				return x + 1
+			},
+			"join":   strings.Join,
+			"getURL": b.getURL,
+		})
+	}
+
+	b.templates.blogPage = template.Must(base().ParseFiles(
+		templateDir+"/base.tmpl",
+		templateDir+"/post-header.tmpl",
+		templateDir+"/post-list.tmpl",
 	))
 
-	postPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"join": strings.Join,
-	}).ParseFiles(
-		templateDir+"/base.html",
-		templateDir+"/post-header.html",
-		templateDir+"/post.html",
+	b.templates.postPage = template.Must(base().ParseFiles(
+		templateDir+"/base.tmpl",
+		templateDir+"/post-header.tmpl",
+		templateDir+"/post.tmpl",
 	))
 
-	authPage = template.Must(template.New("base.html").ParseFiles(
-		templateDir+"/base.html",
-		templateDir+"/auth.html",
+	b.templates.authPage = template.Must(base().ParseFiles(
+		templateDir+"/base.tmpl",
+		templateDir+"/auth.tmpl",
 	))
 
-	adminPage = template.Must(template.New("base.html").ParseFiles(
-		templateDir+"/base.html",
-		templateDir+"/admin.html",
+	b.templates.adminPage = template.Must(base().ParseFiles(
+		templateDir+"/base.tmpl",
+		templateDir+"/admin.tmpl",
 	))
 
-	postFormPage = template.Must(template.New("base.html").ParseFiles(
-		templateDir+"/base.html",
-		templateDir+"/post-form.html",
+	b.templates.postFormPage = template.Must(base().ParseFiles(
+		templateDir+"/base.tmpl",
+		templateDir+"/post-form.tmpl",
 	))
 
 }
@@ -109,6 +120,7 @@ type Blog struct {
 	counter                           *mongo.Collection
 	pageSize                          int
 	login, password, secretKey, title string
+	templates                         templates
 }
 
 func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
@@ -170,7 +182,7 @@ func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
 	cnt, err := b.posts.CountDocuments(context.TODO(), criteria)
 
 	pg.PageCount = (int(cnt) + b.pageSize - 1) / b.pageSize
-	if err := blogPage.Execute(rw, pg); err != nil {
+	if err := b.templates.blogPage.Execute(rw, pg); err != nil {
 		panic(err)
 	}
 }
@@ -183,7 +195,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := postPage.Execute(rw, postPageData{post, b.title}); err != nil {
+	if err := b.templates.postPage.Execute(rw, postPageData{post, b.title}); err != nil {
 		panic(err)
 	}
 }
@@ -191,7 +203,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 func (b *Blog) adminHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
 		http.Redirect(rw, r, b.getURL("auth"), http.StatusFound)
-	} else if err := adminPage.Execute(rw, postFormPageData{BlogTitle: b.title, Title: "ADMIN PAGE"}); err != nil {
+	} else if err := b.templates.adminPage.Execute(rw, postFormPageData{BlogTitle: b.title, Title: "ADMIN PAGE"}); err != nil {
 		panic(err)
 	}
 }
@@ -209,7 +221,7 @@ func (b *Blog) authHandler(rw http.ResponseWriter, r *http.Request) {
 		}
 	} else if b.checkAuth(r) {
 		http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
-	} else if err := authPage.Execute(rw, struct{ Title, BlogTitle string }{Title: "Authorization", BlogTitle: b.title}); err != nil {
+	} else if err := b.templates.authPage.Execute(rw, struct{ Title, BlogTitle string }{Title: "Authorization", BlogTitle: b.title}); err != nil {
 		panic(err)
 	}
 }
@@ -264,7 +276,7 @@ func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 			})
 			http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
 		}
-	} else if err := postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST", BlogTitle: b.title}); err != nil {
+	} else if err := b.templates.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST", BlogTitle: b.title}); err != nil {
 		panic(err)
 	}
 }
@@ -295,7 +307,7 @@ func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 			http.NotFound(rw, r)
 			return
 		}
-		if err := postFormPage.Execute(rw, postFormPageData{ButtonText: "CHANGE", Title: "CHANGE POST", Form: map[string]string{
+		if err := b.templates.postFormPage.Execute(rw, postFormPageData{ButtonText: "CHANGE", Title: "CHANGE POST", Form: map[string]string{
 			"Body":  string(post.Body),
 			"Title": post.Title,
 			"Tags":  strings.Join(post.Tags, " "),
@@ -343,10 +355,13 @@ func NewBlog(baseRouter *mux.Router, posts *mongo.Collection, pageSize int, logi
 	blog.posts = posts
 	blog.counter = posts.Database().Collection(posts.Name() + ".counter")
 	blog.pageSize = pageSize
+
+	blog.parseTemplates()
+
 	blog.HandleFunc("/page/{page:[0-9]+}", blog.postListHandler).Name("postList")
 	blog.HandleFunc("/post/{id:[0-9]+}", blog.postHandler).Name("post")
 	blog.HandleFunc("/static/style.css", func(rw http.ResponseWriter, r *http.Request) {
-		http.ServeFile(rw, r, baseDir+"/static/style.css")
+		http.ServeFile(rw, r, staticDir+"/style.css")
 	})
 	blog.HandleFunc("/admin/auth", blog.authHandler).Name("auth")
 	blog.HandleFunc("/admin", blog.adminHandler).Name("admin")
