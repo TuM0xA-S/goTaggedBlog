@@ -7,6 +7,7 @@ import (
 
 	"github.com/TuM0xA-S/goTaggedBlog/blog"
 	"github.com/caarlos0/env"
+	"github.com/gorilla/mux"
 	"github.com/urfave/negroni"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -42,8 +43,8 @@ func main() {
 	}()
 
 	posts := client.Database("blog").Collection("posts")
-
-	blog := blog.NewBlog(posts, cfg.PageSize, cfg.Login, cfg.Password, cfg.SecretKey, cfg.BlogTitle)
+	router := mux.NewRouter()
+	blog := blog.NewBlog(router.PathPrefix("/blog").Subrouter(), posts, cfg.PageSize, cfg.Login, cfg.Password, cfg.SecretKey, cfg.BlogTitle)
 
 	n := negroni.New(negroni.NewLogger(), negroni.NewRecovery())
 	n.UseHandler(blog)

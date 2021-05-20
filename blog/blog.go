@@ -189,7 +189,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 
 func (b *Blog) adminHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
-		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+		http.Redirect(rw, r, b.getURL("auth"), http.StatusFound)
 	} else if err := adminPage.Execute(rw, postFormPageData{BlogTitle: b.title, Title: "ADMIN PAGE"}); err != nil {
 		panic(err)
 	}
@@ -202,12 +202,12 @@ func (b *Blog) authHandler(rw http.ResponseWriter, r *http.Request) {
 		password := r.Form.Get("password")
 		if login == b.login && password == b.password {
 			http.SetCookie(rw, &http.Cookie{Name: "auth", Value: b.secretKey})
-			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+			http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
 		} else {
-			http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+			http.Redirect(rw, r, b.getURL("auth"), http.StatusFound)
 		}
 	} else if b.checkAuth(r) {
-		http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+		http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
 	} else if err := authPage.Execute(rw, struct{ Title, BlogTitle string }{Title: "Authorization", BlogTitle: b.title}); err != nil {
 		panic(err)
 	}
@@ -243,12 +243,12 @@ func extractTags(s string) []string {
 
 func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
-		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+		http.Redirect(rw, r, b.getURL("auth"), http.StatusFound)
 		return
 	}
 	if r.Method == "POST" {
 		if err := r.ParseForm(); err != nil {
-			http.Redirect(rw, r, "/blog/admin/create", http.StatusFound)
+			http.Redirect(rw, r, b.getURL("createPost"), http.StatusFound)
 		} else {
 			b.posts.InsertOne(context.TODO(), Post{
 				Title:         r.Form.Get("title"),
@@ -257,7 +257,7 @@ func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 				ID:            b.nextID(),
 				TimePublished: time.Now(),
 			})
-			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+			http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
 		}
 	} else if err := postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST", BlogTitle: b.title}); err != nil {
 		panic(err)
@@ -266,14 +266,14 @@ func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 
 func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
-		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+		http.Redirect(rw, r, b.getURL("auth"), http.StatusFound)
 		return
 	}
 
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	if r.Method == "POST" {
 		if err := r.ParseForm(); err != nil {
-			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+			http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
 		} else {
 			b.posts.UpdateOne(context.TODO(), bson.M{"_id": id}, bson.M{
 				"$set": bson.M{
@@ -282,7 +282,7 @@ func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 					"tags":          extractTags(r.Form.Get("tags")),
 					"timePublished": time.Now(),
 				}})
-			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+			http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
 		}
 	} else {
 		var post Post
@@ -303,13 +303,13 @@ func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 
 func (b *Blog) removeHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
-		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
+		http.Redirect(rw, r, b.getURL("auth"), http.StatusFound)
 		return
 	}
 
 	id, _ := strconv.Atoi(mux.Vars(r)["id"])
 	b.posts.FindOneAndDelete(context.TODO(), bson.M{"_id": id})
-	http.Redirect(rw, r, "/blog/admin", http.StatusFound)
+	http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
 }
 
 func (b *Blog) checkAuth(r *http.Request) bool {
@@ -317,29 +317,38 @@ func (b *Blog) checkAuth(r *http.Request) bool {
 	return err == nil && key.Value == b.secretKey
 }
 
+func (b *Blog) getURL(name string, pairs ...string) string {
+	path, err := b.Get(name).URL(pairs...)
+	if err != nil {
+		panic(err)
+	}
+
+	return path.String()
+}
+
 //NewBlog creates blog app
-func NewBlog(posts *mongo.Collection, pageSize int, login, password, secretKey, title string) Blog {
-	var blog Blog
+func NewBlog(baseRouter *mux.Router, posts *mongo.Collection, pageSize int, login, password, secretKey, title string) *Blog {
+	blog := &Blog{}
 	blog.login = login
 	blog.password = password
 	blog.secretKey = secretKey
 	blog.title = title
 
-	blog.Router = mux.NewRouter()
+	blog.Router = baseRouter
 	blog.posts = posts
 	blog.counter = posts.Database().Collection(posts.Name() + ".counter")
 	blog.pageSize = pageSize
-	blog.HandleFunc("/blog/page/{page:[0-9]+}", blog.postListHandler)
-	blog.HandleFunc("/blog/post/{id:[0-9]+}", blog.postHandler)
-	blog.HandleFunc("/blog/static/style.css", func(rw http.ResponseWriter, r *http.Request) {
+	blog.HandleFunc("/page/{page:[0-9]+}", blog.postListHandler).Name("postList")
+	blog.HandleFunc("/post/{id:[0-9]+}", blog.postHandler).Name("post")
+	blog.HandleFunc("/static/style.css", func(rw http.ResponseWriter, r *http.Request) {
 		http.ServeFile(rw, r, baseDir+"/static/style.css")
 	})
-	blog.HandleFunc("/blog/admin/auth", blog.authHandler)
-	blog.HandleFunc("/blog/admin", blog.adminHandler)
-	blog.HandleFunc("/blog/admin/create", blog.createHandler)
-	blog.HandleFunc("/blog/admin/change/{id:[0-9]+}", blog.changeHandler)
-	blog.HandleFunc("/blog/admin/remove/{id:[0-9]+}", blog.removeHandler)
-	blog.Handle("/blog/", http.RedirectHandler("/blog/page/1", http.StatusFound))
+	blog.HandleFunc("/admin/auth", blog.authHandler).Name("auth")
+	blog.HandleFunc("/admin", blog.adminHandler).Name("admin")
+	blog.HandleFunc("/admin/create", blog.createHandler).Name("createPost")
+	blog.HandleFunc("/admin/change/{id:[0-9]+}", blog.changeHandler).Name("changePost")
+	blog.HandleFunc("/admin/remove/{id:[0-9]+}", blog.removeHandler).Name("removePost")
+	blog.Handle("/", http.RedirectHandler(blog.getURL("postList", "page", "1"), http.StatusFound))
 
 	return blog
 }
