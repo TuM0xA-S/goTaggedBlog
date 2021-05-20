@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -213,12 +214,16 @@ func (b *Blog) authHandler(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// bad way, should use mongo increment instead
+var mu sync.Mutex
+
 func (b *Blog) nextID() int {
 	var cnt struct {
 		ID    int `bson:"_id"`
 		Count int
 	}
-
+	mu.Lock()
+	defer mu.Unlock()
 	b.counter.FindOne(context.TODO(), bson.M{"_id": 0}).Decode(&cnt)
 	cnt.Count++
 	b.counter.ReplaceOne(context.TODO(), bson.M{"_id": 0}, cnt, options.Replace().SetUpsert(true))
