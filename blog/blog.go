@@ -4,6 +4,8 @@ import (
 	"context"
 	"html/template"
 	"net/http"
+	"path"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -15,6 +17,60 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+var (
+	baseDir      string
+	templateDir  string
+	postPage     *template.Template
+	authPage     *template.Template
+	blogPage     *template.Template
+	adminPage    *template.Template
+	postFormPage *template.Template
+)
+
+func init() {
+	_, filename, _, _ := runtime.Caller(0)
+	baseDir = path.Dir(filename)
+	templateDir = path.Join(baseDir, "templates")
+	blogPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"dec": func(x int) int {
+			return x - 1
+		},
+		"inc": func(x int) int {
+			return x + 1
+		},
+		"join": strings.Join,
+	}).ParseFiles(
+		templateDir+"/base.html",
+		templateDir+"/post-header.html",
+		templateDir+"/post-list.html",
+	))
+
+	postPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
+		"join": strings.Join,
+	}).ParseFiles(
+		templateDir+"/base.html",
+		templateDir+"/post-header.html",
+		templateDir+"/post.html",
+	))
+
+	authPage = template.Must(template.New("base.html").ParseFiles(
+		templateDir+"/base.html",
+		templateDir+"/auth.html",
+	))
+
+	adminPage = template.Must(template.New("base.html").ParseFiles(
+		templateDir+"/base.html",
+		templateDir+"/admin.html",
+	))
+
+	postFormPage = template.Must(template.New("base.html").ParseFiles(
+		templateDir+"/base.html",
+		templateDir+"/post-form.html",
+	))
+
+}
+
+// Post struct
 type Post struct {
 	TimePublished time.Time     `bson:"timePublished"`
 	Title         string        `bson:"title"`
@@ -45,16 +101,12 @@ type postFormPageData struct {
 	BlogTitle  string
 }
 
+// Blog app
 type Blog struct {
 	*mux.Router
 	posts                             *mongo.Collection
 	counter                           *mongo.Collection
 	pageSize                          int
-	postPage                          *template.Template
-	authPage                          *template.Template
-	blogPage                          *template.Template
-	adminPage                         *template.Template
-	postFormPage                      *template.Template
 	login, password, secretKey, title string
 }
 
@@ -117,7 +169,7 @@ func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
 	cnt, err := b.posts.CountDocuments(context.TODO(), criteria)
 
 	pg.PageCount = (int(cnt) + b.pageSize - 1) / b.pageSize
-	if err := b.blogPage.Execute(rw, pg); err != nil {
+	if err := blogPage.Execute(rw, pg); err != nil {
 		panic(err)
 	}
 }
@@ -130,7 +182,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := b.postPage.Execute(rw, postPageData{post, b.title}); err != nil {
+	if err := postPage.Execute(rw, postPageData{post, b.title}); err != nil {
 		panic(err)
 	}
 }
@@ -138,7 +190,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 func (b *Blog) adminHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
 		http.Redirect(rw, r, "/blog/admin/auth", http.StatusFound)
-	} else if err := b.adminPage.Execute(rw, postFormPageData{BlogTitle: b.title, Title: "ADMIN PAGE"}); err != nil {
+	} else if err := adminPage.Execute(rw, postFormPageData{BlogTitle: b.title, Title: "ADMIN PAGE"}); err != nil {
 		panic(err)
 	}
 }
@@ -156,7 +208,7 @@ func (b *Blog) authHandler(rw http.ResponseWriter, r *http.Request) {
 		}
 	} else if b.checkAuth(r) {
 		http.Redirect(rw, r, "/blog/admin", http.StatusFound)
-	} else if err := b.authPage.Execute(rw, struct{ Title, BlogTitle string }{Title: "Authorization", BlogTitle: b.title}); err != nil {
+	} else if err := authPage.Execute(rw, struct{ Title, BlogTitle string }{Title: "Authorization", BlogTitle: b.title}); err != nil {
 		panic(err)
 	}
 }
@@ -207,7 +259,7 @@ func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 			})
 			http.Redirect(rw, r, "/blog/admin", http.StatusFound)
 		}
-	} else if err := b.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST", BlogTitle: b.title}); err != nil {
+	} else if err := postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST", BlogTitle: b.title}); err != nil {
 		panic(err)
 	}
 }
@@ -238,7 +290,7 @@ func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 			http.NotFound(rw, r)
 			return
 		}
-		if err := b.postFormPage.Execute(rw, postFormPageData{ButtonText: "CHANGE", Title: "CHANGE POST", Form: map[string]string{
+		if err := postFormPage.Execute(rw, postFormPageData{ButtonText: "CHANGE", Title: "CHANGE POST", Form: map[string]string{
 			"Body":  string(post.Body),
 			"Title": post.Title,
 			"Tags":  strings.Join(post.Tags, " "),
@@ -266,49 +318,12 @@ func (b *Blog) checkAuth(r *http.Request) bool {
 }
 
 //NewBlog creates blog app
-func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, password, secretKey, title string) Blog {
+func NewBlog(posts *mongo.Collection, pageSize int, login, password, secretKey, title string) Blog {
 	var blog Blog
 	blog.login = login
 	blog.password = password
 	blog.secretKey = secretKey
 	blog.title = title
-
-	blog.blogPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"dec": func(x int) int {
-			return x - 1
-		},
-		"inc": func(x int) int {
-			return x + 1
-		},
-		"join": strings.Join,
-	}).ParseFiles(
-		workdir+"/templates/base.html",
-		workdir+"/templates/post-header.html",
-		workdir+"/templates/post-list.html",
-	))
-
-	blog.postPage = template.Must(template.New("base.html").Funcs(template.FuncMap{
-		"join": strings.Join,
-	}).ParseFiles(
-		workdir+"/templates/base.html",
-		workdir+"/templates/post-header.html",
-		workdir+"/templates/post.html",
-	))
-
-	blog.authPage = template.Must(template.New("base.html").ParseFiles(
-		workdir+"/templates/base.html",
-		workdir+"/templates/auth.html",
-	))
-
-	blog.adminPage = template.Must(template.New("base.html").ParseFiles(
-		workdir+"/templates/base.html",
-		workdir+"/templates/admin.html",
-	))
-
-	blog.postFormPage = template.Must(template.New("base.html").ParseFiles(
-		workdir+"/templates/base.html",
-		workdir+"/templates/post-form.html",
-	))
 
 	blog.Router = mux.NewRouter()
 	blog.posts = posts
@@ -317,10 +332,7 @@ func NewBlog(posts *mongo.Collection, pageSize int, workdir string, login, passw
 	blog.HandleFunc("/blog/page/{page:[0-9]+}", blog.postListHandler)
 	blog.HandleFunc("/blog/post/{id:[0-9]+}", blog.postHandler)
 	blog.HandleFunc("/blog/static/style.css", func(rw http.ResponseWriter, r *http.Request) {
-		http.ServeFile(rw, r, workdir+"/static/style.css")
-	})
-	blog.HandleFunc("/blog/static/style.css", func(rw http.ResponseWriter, r *http.Request) {
-		http.ServeFile(rw, r, workdir+"/static/style.css")
+		http.ServeFile(rw, r, baseDir+"/static/style.css")
 	})
 	blog.HandleFunc("/blog/admin/auth", blog.authHandler)
 	blog.HandleFunc("/blog/admin", blog.adminHandler)
