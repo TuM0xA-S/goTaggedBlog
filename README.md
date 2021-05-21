@@ -13,4 +13,6 @@ Features:
 
 ### tasks
 * [x] refactoring stage 1
-* [ ] refactoring stage 2
+* [x] refactoring stage 2
+* [ ] update authorization system to be more secure
+* [ ] enhance error handling
