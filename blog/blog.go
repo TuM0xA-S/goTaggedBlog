@@ -32,11 +32,12 @@ func init() {
 }
 
 type templates struct {
-	postPage     *template.Template
-	authPage     *template.Template
-	blogPage     *template.Template
-	adminPage    *template.Template
-	postFormPage *template.Template
+	postPage       *template.Template
+	authPage       *template.Template
+	blogPage       *template.Template
+	adminPage      *template.Template
+	postChangePage *template.Template
+	postCreatePage *template.Template
 }
 
 func (b *Blog) parseTemplates() {
@@ -50,6 +51,9 @@ func (b *Blog) parseTemplates() {
 			},
 			"join":   strings.Join,
 			"getURL": b.getURL,
+			"blogTitle": func() string {
+				return b.title
+			},
 		})
 	}
 
@@ -75,9 +79,16 @@ func (b *Blog) parseTemplates() {
 		templateDir+"/admin.tmpl",
 	))
 
-	b.templates.postFormPage = template.Must(base().ParseFiles(
+	b.templates.postCreatePage = template.Must(base().ParseFiles(
 		templateDir+"/base.tmpl",
 		templateDir+"/post-form.tmpl",
+		templateDir+"/post-create-form.tmpl",
+	))
+
+	b.templates.postChangePage = template.Must(base().ParseFiles(
+		templateDir+"/base.tmpl",
+		templateDir+"/post-form.tmpl",
+		templateDir+"/post-change-form.tmpl",
 	))
 
 }
@@ -91,11 +102,6 @@ type Post struct {
 	ID            int           `bson:"_id"`
 }
 
-type postPageData struct {
-	Post
-	BlogTitle string
-}
-
 type blogPageData struct {
 	Title      string
 	PageNumber int
@@ -103,14 +109,10 @@ type blogPageData struct {
 	PageCount  int
 	Query      template.URL
 	Tags       []string
-	BlogTitle  string
 }
 
 type postFormPageData struct {
-	Title      string
-	Form       map[string]string
-	ButtonText string
-	BlogTitle  string
+	Form map[string]string
 }
 
 // Blog app
@@ -128,7 +130,7 @@ func (b *Blog) postListHandler(rw http.ResponseWriter, r *http.Request) {
 
 	tags := extractTags(r.URL.Query().Get("tags"))
 
-	pg := &blogPageData{Title: b.title, BlogTitle: b.title, Posts: []Post{}, PageNumber: pageNumber, Query: template.URL(r.URL.RawQuery), Tags: tags}
+	pg := &blogPageData{Title: b.title, Posts: []Post{}, PageNumber: pageNumber, Query: template.URL(r.URL.RawQuery), Tags: tags}
 
 	query := bson.A{
 		bson.M{
@@ -195,7 +197,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := b.templates.postPage.Execute(rw, postPageData{post, b.title}); err != nil {
+	if err := b.templates.postPage.Execute(rw, post); err != nil {
 		panic(err)
 	}
 }
@@ -203,7 +205,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 func (b *Blog) adminHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
 		http.Redirect(rw, r, b.getURL("auth"), http.StatusFound)
-	} else if err := b.templates.adminPage.Execute(rw, postFormPageData{BlogTitle: b.title, Title: "ADMIN PAGE"}); err != nil {
+	} else if err := b.templates.adminPage.Execute(rw, nil); err != nil {
 		panic(err)
 	}
 }
@@ -276,7 +278,7 @@ func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 			})
 			http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
 		}
-	} else if err := b.templates.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST", BlogTitle: b.title}); err != nil {
+	} else if err := b.templates.postCreatePage.Execute(rw, nil); err != nil {
 		panic(err)
 	}
 }
@@ -307,11 +309,11 @@ func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 			http.NotFound(rw, r)
 			return
 		}
-		if err := b.templates.postFormPage.Execute(rw, postFormPageData{ButtonText: "CHANGE", Title: "CHANGE POST", Form: map[string]string{
+		if err := b.templates.postChangePage.Execute(rw, postFormPageData{Form: map[string]string{
 			"Body":  string(post.Body),
 			"Title": post.Title,
 			"Tags":  strings.Join(post.Tags, " "),
-		}, BlogTitle: b.title}); err != nil {
+		}}); err != nil {
 			panic(err)
 		}
 	}

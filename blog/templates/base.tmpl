@@ -10,13 +10,17 @@
         <link rel="preconnect" href="https://fonts.gstatic.com">
         <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet"> 
     <link rel="stylesheet" href="/blog/static/style.css">
-    <title>{{.Title}}</title>
+    <title>
+        {{block "title-header" .}}
+            {{.Title}}
+        {{end}}
+    </title>
 </head>
 
 <body>
     <div class="header">
         <a class="tag-search">TAG SEARCH</a>
-        <a class="blog-title" href="{{ getURL "postList" "page" "1" }}">{{.BlogTitle}}</a>
+        <a class="blog-title" href="{{ getURL "postList" "page" "1" }}">{{blogTitle}}</a>
         <a class="admin-auth" href="{{ getURL "auth" }}">I'M ADMIN</a>
     </div>
     <div class="content">
