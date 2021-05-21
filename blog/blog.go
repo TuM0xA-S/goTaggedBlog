@@ -32,11 +32,12 @@ func init() {
 }
 
 type templates struct {
-	postPage     *template.Template
-	authPage     *template.Template
-	blogPage     *template.Template
-	adminPage    *template.Template
-	postFormPage *template.Template
+	postPage       *template.Template
+	authPage       *template.Template
+	blogPage       *template.Template
+	adminPage      *template.Template
+	postChangePage *template.Template
+	postCreatePage *template.Template
 }
 
 func (b *Blog) parseTemplates() {
@@ -78,9 +79,16 @@ func (b *Blog) parseTemplates() {
 		templateDir+"/admin.tmpl",
 	))
 
-	b.templates.postFormPage = template.Must(base().ParseFiles(
+	b.templates.postCreatePage = template.Must(base().ParseFiles(
 		templateDir+"/base.tmpl",
 		templateDir+"/post-form.tmpl",
+		templateDir+"/post-create-form.tmpl",
+	))
+
+	b.templates.postChangePage = template.Must(base().ParseFiles(
+		templateDir+"/base.tmpl",
+		templateDir+"/post-form.tmpl",
+		templateDir+"/post-change-form.tmpl",
 	))
 
 }
@@ -104,9 +112,7 @@ type blogPageData struct {
 }
 
 type postFormPageData struct {
-	Title      string
-	Form       map[string]string
-	ButtonText string
+	Form map[string]string
 }
 
 // Blog app
@@ -199,7 +205,7 @@ func (b *Blog) postHandler(rw http.ResponseWriter, r *http.Request) {
 func (b *Blog) adminHandler(rw http.ResponseWriter, r *http.Request) {
 	if !b.checkAuth(r) {
 		http.Redirect(rw, r, b.getURL("auth"), http.StatusFound)
-	} else if err := b.templates.adminPage.Execute(rw, postFormPageData{Title: "ADMIN PAGE"}); err != nil {
+	} else if err := b.templates.adminPage.Execute(rw, nil); err != nil {
 		panic(err)
 	}
 }
@@ -272,7 +278,7 @@ func (b *Blog) createHandler(rw http.ResponseWriter, r *http.Request) {
 			})
 			http.Redirect(rw, r, b.getURL("admin"), http.StatusFound)
 		}
-	} else if err := b.templates.postFormPage.Execute(rw, postFormPageData{ButtonText: "CREATE", Title: "CREATE NEW POST"}); err != nil {
+	} else if err := b.templates.postCreatePage.Execute(rw, nil); err != nil {
 		panic(err)
 	}
 }
@@ -303,7 +309,7 @@ func (b *Blog) changeHandler(rw http.ResponseWriter, r *http.Request) {
 			http.NotFound(rw, r)
 			return
 		}
-		if err := b.templates.postFormPage.Execute(rw, postFormPageData{ButtonText: "CHANGE", Title: "CHANGE POST", Form: map[string]string{
+		if err := b.templates.postChangePage.Execute(rw, postFormPageData{Form: map[string]string{
 			"Body":  string(post.Body),
 			"Title": post.Title,
 			"Tags":  strings.Join(post.Tags, " "),

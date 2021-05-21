@@ -10,7 +10,11 @@
         <link rel="preconnect" href="https://fonts.gstatic.com">
         <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet"> 
     <link rel="stylesheet" href="/blog/static/style.css">
-    <title>{{.Title}}</title>
+    <title>
+        {{block "title-header" .}}
+            {{.Title}}
+        {{end}}
+    </title>
 </head>
 
 <body>
